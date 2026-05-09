@@ -1,46 +1,47 @@
 {
-  description = "arcadeos development flake";
+  description = "breaktime dev flake";
 
   inputs = {
-    nixpkgs.url = "github:nixos/nixpkgs/nixos-23.05";
-    flake-utils.url = "github:numtide/flake-utils";
-    zig.url = "github:mitchellh/zig-overlay";
-
-    # Used for shell.nix
-    flake-compat = {
-      url = "github:edolstra/flake-compat";
-      flake = false;
-    };
+    nixpkgs.url = "github:nixos/nixpkgs/nixpkgs-unstable";
+    flake-parts.url = "github:hercules-ci/flake-parts";
   };
 
-  outputs = {
-    self,
-    nixpkgs,
-    flake-utils,
-    ...
-  } @ inputs: let
-    overlays = [
-      # Other overlays
-      (final: prev: {
-        zigpkgs = inputs.zig.packages.${prev.system};
-      })
-    ];
+  outputs = inputs: inputs.flake-parts.lib.mkFlake { inherit inputs; } (
+    {
+      lib,
+      ...
+    }: {
+      systems = lib.platforms.darwin;
+      perSystem =
+        {
+          pkgs,
+          self',
+          ...
+        }:
+        {
+          packages.default = pkgs.stdenvNoCC.mkDerivation {
+            name = "breaktime";
+            version = "0.1.0";
 
-    # Our supported systems are the same supported systems as the Zig binaries
-    systems = builtins.attrNames inputs.zig.packages;
-  in
-  flake-utils.lib.eachSystem systems (
-    system: let
-      pkgs = import nixpkgs {inherit overlays system;};
-    in {
-      devShells.default = pkgs.mkShell {
-        nativeBuildInputs = with pkgs; [
-          zigpkgs."0.13.0"
-        ];
-      };
+            src = lib.cleanSource ./.;
 
-      # For compatibility with older versions of the `nix` binary
-      devShell = self.devShells.${system}.default;
-    }
-  );
+            buildInputs = with pkgs; [
+              zig
+              apple-sdk
+            ];
+
+            buildPhase = ''
+              zig build
+            '';
+
+            installPhase = ''
+              mkdir -p $out/bin
+              cp zig-out/bin/breaktime $out/bin/
+            '';
+          };
+          devShells.default = pkgs.mkShell {
+            inputsFrom = [ self'.packages.default ];
+          };
+        };
+  });
 }

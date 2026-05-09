@@ -1,43 +1,74 @@
+const std = @import("std");
+const c = @import("c");
+
 pub export const icon = @embedFile("res/hourglass.png");
 pub export const icon_len = icon.len;
 
-const c = @cImport({
-    @cInclude("config.h");
-});
+extern fn app_main(argc: u32, argv: [*]const [*:0]const u8, config: *c.config) void;
 
-const std = @import("std");
+pub fn main(init: std.process.Init) !void {
+    // Default alloc/io/args
+    const allocator = init.gpa;
+    const io = init.io;
+    const args = try init.minimal.args.toSlice(allocator);
+    defer allocator.free(args);
 
-extern fn app_main(argc: u32, argv: [*][*:0]u8, config: *c.config) void;
-
-var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-
-pub fn main() !void {
-    const allocator = gpa.allocator();
-    const path = try std.fs.path.join(
+    // Get config folder path. Currently just ~/.config/breaktime.json,
+    // may allow configuring later
+    const config_path = try std.fs.path.join(
         allocator,
-        &[_][]const u8{ std.posix.getenv("HOME").?, ".config/breaktime.json" },
+        &[_][]const u8{ init.environ_map.get("HOME").?, ".config/breaktime.json" },
     );
-    defer allocator.free(path);
-    // if doesn't exist, create it
-    std.fs.accessAbsolute(path, .{}) catch {
-        std.fs.accessAbsolute(std.fs.path.dirname(path).?, .{}) catch {
-            try std.fs.makeDirAbsolute(std.fs.path.dirname(path).?);
+    defer allocator.free(config_path);
+
+    // Ensure the config exists
+    std.Io.Dir.accessAbsolute(io, config_path, .{}) catch {
+        // if doesn't exist, create it
+        // Check that the config folder exists
+        const config_dir = std.fs.path.dirname(config_path).?;
+        std.Io.Dir.accessAbsolute(io, config_dir, .{}) catch {
+            // Create the config dir if missing
+            try std.Io.Dir.createDirAbsolute(io, config_dir, .default_file);
         };
-        const file = try std.fs.createFileAbsolute(path, .{});
-        defer file.close();
-        try std.json.stringify(Config{}, .{ .whitespace = .indent_4 }, file.writer());
+
+        // Open the file to write to
+        const file = try std.Io.Dir.createFileAbsolute(io, config_path, .{});
+        defer file.close(init.io);
+
+        // Create buffered writer
+        var buf: [256]u8 = undefined;
+        var writer = file.writer(io, &buf);
+
+        // Structured writer for json
+        var stringify: std.json.Stringify = .{
+            .options = .{ .whitespace = .indent_4 },
+            .writer = &writer.interface,
+        };
+
+        // Write the default config
+        try stringify.write(Config{});
     };
+
+    // Read the defined config
+    // Create parsed object
     var parsed_config: std.json.Parsed(Config) = undefined;
     defer parsed_config.deinit();
-    const file = try std.fs.openFileAbsolute(path, .{});
-    defer file.close();
-    const data = try file.readToEndAlloc(allocator, 32767);
+    // Open file
+    const file = try std.Io.Dir.openFileAbsolute(io, config_path, .{});
+    defer file.close(io);
+    // Read file
+    var reader = file.reader(io, &.{});
+    const data = try reader.interface.allocRemaining(allocator, .limited(32767));
+    defer allocator.free(data);
+    // Parse config
     parsed_config = try std.json.parseFromSlice(Config, allocator, data, .{});
 
+    // Convert config to c variant
     var c_config: c.config = undefined;
     parsed_config.value.toC(&c_config);
-    app_main(@intCast(std.os.argv.len), std.os.argv.ptr, &c_config);
-    _ = gpa.deinit();
+
+    // Jump into ObjC
+    app_main(@truncate(@max(args.len, 2 << 31)), @ptrCast(args.ptr), &c_config);
 }
 
 const Config = struct {
