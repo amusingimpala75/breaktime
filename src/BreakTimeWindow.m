@@ -3,8 +3,9 @@
 #import <Cocoa/Cocoa.h>
 #import <QuartzCore/QuartzCore.h>
 
-const int mask = NSWindowStyleMaskFullSizeContentView | NSWindowStyleMaskClosable |
-             NSWindowStyleMaskMiniaturizable | NSWindowStyleMaskResizable;
+const int mask = NSWindowStyleMaskFullSizeContentView |
+                 NSWindowStyleMaskClosable | NSWindowStyleMaskMiniaturizable |
+                 NSWindowStyleMaskResizable;
 
 static NSColor *colorFromRGBA(int code) {
   return [NSColor colorWithRed:((code >> 24) & 0xFF) / 255.0
@@ -48,11 +49,14 @@ static NSFont *toNSFont(const struct font *font) {
   self.contentView = grid;
   // Text field with the message
   {
-    NSAttributedString *text =
-      [[NSAttributedString alloc]
-                           initWithString:toNSString(self.config->appearance.message)
-                               attributes:@{NSFontAttributeName:toNSFont(&self.config->appearance.message_font),
-                                 NSForegroundColorAttributeName:colorFromRGBA(self.config->appearance.message_font.color << 8 | 0xFF)}];
+    NSAttributedString *text = [[NSAttributedString alloc]
+        initWithString:toNSString(self.config->appearance.message)
+            attributes:@{
+              NSFontAttributeName :
+                  toNSFont(&self.config->appearance.message_font),
+              NSForegroundColorAttributeName : colorFromRGBA(
+                  self.config->appearance.message_font.color << 8 | 0xFF)
+            }];
     NSTextField *textField = [NSTextField labelWithAttributedString:text];
     [textField setAlphaValue:0.0];
     NSGridCell *textCell = [[grid rowAtIndex:1] cellAtIndex:1];
@@ -62,10 +66,14 @@ static NSFont *toNSFont(const struct font *font) {
   }
   // Text field for the timer
   {
-    self.timerTextAttributes = @{NSFontAttributeName:toNSFont(&self.config->appearance.timer_font),
-                      NSForegroundColorAttributeName:colorFromRGBA(self.config->appearance.timer_font.color << 8 | 0xFF)};
-    NSAttributedString *text = [[NSAttributedString alloc] initWithString:@"00:00"
-                                                               attributes:self.timerTextAttributes];
+    self.timerTextAttributes = @{
+      NSFontAttributeName : toNSFont(&self.config->appearance.timer_font),
+      NSForegroundColorAttributeName :
+          colorFromRGBA(self.config->appearance.timer_font.color << 8 | 0xFF)
+    };
+    NSAttributedString *text =
+        [[NSAttributedString alloc] initWithString:@"00:00"
+                                        attributes:self.timerTextAttributes];
     NSTextField *textFieldTime = [NSTextField labelWithAttributedString:text];
     [textFieldTime setAlphaValue:0.0];
     NSGridCell *timeCell = [[grid rowAtIndex:2] cellAtIndex:1];
@@ -75,10 +83,10 @@ static NSFont *toNSFont(const struct font *font) {
 
     [NSTimer scheduledTimerWithTimeInterval:0.2
                                     repeats:YES
-                                      block:^(NSTimer * _Nonnull timer) {
-      #pragma unused(timer)
-      [self updateTime];
-    }];
+                                      block:^(NSTimer *_Nonnull timer) {
+#pragma unused(timer)
+                                        [self updateTime];
+                                      }];
   }
   // Set the title
   [self setTitle:@"Break Time"];
@@ -94,66 +102,87 @@ static NSFont *toNSFont(const struct font *font) {
   NSTimeInterval time = [[NSDate date] timeIntervalSinceDate:self.shownAt];
   int minutes = (int)time / 60;
   int seconds = (int)time % 60;
-  NSString *time_string = [NSString stringWithFormat:@"%02d:%02d", minutes, seconds];
-  [[[(NSGridView *)self.contentView rowAtIndex:2] cellAtIndex:1].contentView setAttributedStringValue: [[NSAttributedString alloc] initWithString:time_string
-                                                                               attributes:self.timerTextAttributes]];
-  if (!self.closing && ((unsigned int)minutes) >= self.config->functionality.break_duration) {
+  NSString *time_string =
+      [NSString stringWithFormat:@"%02d:%02d", minutes, seconds];
+  [[[(NSGridView *)self.contentView rowAtIndex:2] cellAtIndex:1].contentView
+      setAttributedStringValue:[[NSAttributedString alloc]
+                                   initWithString:time_string
+                                       attributes:self.timerTextAttributes]];
+  if (!self.closing &&
+      ((unsigned int)minutes) >= self.config->functionality.break_duration) {
     [self close];
   }
 }
 
 - (BOOL)canBecomeKeyWindow {
-    return YES;
+  return YES;
 }
 
 - (void)close {
   self.closing = YES;
   // Fade out the window
   [NSAnimationContext beginGrouping];
-  [[NSAnimationContext currentContext] setDuration:self.config->appearance.animations.window.fade_out];
-  [NSAnimationContext currentContext].timingFunction = [CAMediaTimingFunction functionWithName:kCAMediaTimingFunctionEaseOut];
+  [[NSAnimationContext currentContext]
+      setDuration:self.config->appearance.animations.window.fade_out];
+  [NSAnimationContext currentContext].timingFunction =
+      [CAMediaTimingFunction functionWithName:kCAMediaTimingFunctionEaseOut];
   [NSAnimationContext currentContext].completionHandler = ^{
     [super close];
   };
   [[self animator] setAlphaValue:0.0];
   [NSAnimationContext endGrouping];
   // Schedule the window to reappear
-  [NSTimer scheduledTimerWithTimeInterval:self.config->functionality.use_duration * 60
-                                  repeats:NO
-                                    block:^(NSTimer * _Nonnull timer) {
-    #pragma unused(timer)
-    [NSApp activateIgnoringOtherApps:YES];
-    [[[BreakTimeWindow alloc] init] makeKeyAndOrderFront:nil];
-  }];
+  [NSTimer
+      scheduledTimerWithTimeInterval:self.config->functionality.use_duration *
+                                     60
+                             repeats:NO
+                               block:^(NSTimer *_Nonnull timer) {
+#pragma unused(timer)
+                                 [NSApp activateIgnoringOtherApps:YES];
+                                 [[[BreakTimeWindow alloc] init]
+                                     makeKeyAndOrderFront:nil];
+                               }];
 }
 
 - (void)fadeIn {
   // Fade in the window
   [NSAnimationContext beginGrouping];
   [self setAlphaValue:0.0];
-  [[NSAnimationContext currentContext] setDuration:self.config->appearance.animations.window.fade_in];
-  [NSAnimationContext currentContext].timingFunction = [CAMediaTimingFunction functionWithName:kCAMediaTimingFunctionEaseIn];
+  [[NSAnimationContext currentContext]
+      setDuration:self.config->appearance.animations.window.fade_in];
+  [NSAnimationContext currentContext].timingFunction =
+      [CAMediaTimingFunction functionWithName:kCAMediaTimingFunctionEaseIn];
   [[self animator] setAlphaValue:1.0];
   [NSAnimationContext endGrouping];
   self.shownAt = [NSDate date];
   [self updateTime];
   // Fade in message text
-  NSTextField *textField = [[(NSGridView *)(self.contentView) rowAtIndex:1] cellAtIndex:1].contentView;
+  NSTextField *textField =
+      [[(NSGridView *)(self.contentView) rowAtIndex:1] cellAtIndex:1]
+          .contentView;
   [NSAnimationContext beginGrouping];
-  [[NSAnimationContext currentContext] setDuration:self.config->appearance.animations.message.fade_in];
-  [NSAnimationContext currentContext].timingFunction = [CAMediaTimingFunction functionWithName:kCAMediaTimingFunctionEaseIn];
+  [[NSAnimationContext currentContext]
+      setDuration:self.config->appearance.animations.message.fade_in];
+  [NSAnimationContext currentContext].timingFunction =
+      [CAMediaTimingFunction functionWithName:kCAMediaTimingFunctionEaseIn];
   [[textField animator] setAlphaValue:1.0];
   [NSAnimationContext endGrouping];
   // Fade in timer text
-  NSTextField *textFieldTime = [[(NSGridView *)(self.contentView) rowAtIndex:2] cellAtIndex:1].contentView;
-  [NSTimer scheduledTimerWithTimeInterval:self.config->appearance.animations.timer.fade_in_delay
-                                  repeats:NO
-                                    block:^(NSTimer * _Nonnull timer) {
-    #pragma unused(timer)
-    [NSAnimationContext beginGrouping];
-    [[NSAnimationContext currentContext] setDuration:self.config->appearance.animations.timer.fade_in];
-    [[textFieldTime animator] setAlphaValue:1.0];
-    [NSAnimationContext endGrouping];
-  }];
+  NSTextField *textFieldTime =
+      [[(NSGridView *)(self.contentView) rowAtIndex:2] cellAtIndex:1]
+          .contentView;
+  [NSTimer
+      scheduledTimerWithTimeInterval:self.config->appearance.animations.timer
+                                         .fade_in_delay
+                             repeats:NO
+                               block:^(NSTimer *_Nonnull timer) {
+#pragma unused(timer)
+                                 [NSAnimationContext beginGrouping];
+                                 [[NSAnimationContext currentContext]
+                                     setDuration:self.config->appearance
+                                                     .animations.timer.fade_in];
+                                 [[textFieldTime animator] setAlphaValue:1.0];
+                                 [NSAnimationContext endGrouping];
+                               }];
 }
 @end
