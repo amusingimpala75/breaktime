@@ -45,7 +45,7 @@ static NSFont *toNSFont(const struct font *font) {
   // Set the background color
   self.backgroundColor = colorFromRGBA(self.config->appearance.background);
   // Grid for items
-  NSGridView *grid = [NSGridView gridViewWithNumberOfColumns:3 rows:3];
+  NSGridView *grid = [NSGridView gridViewWithNumberOfColumns:1 rows:2];
   self.contentView = grid;
   // Text field with the message
   {
@@ -59,7 +59,7 @@ static NSFont *toNSFont(const struct font *font) {
             }];
     NSTextField *textField = [NSTextField labelWithAttributedString:text];
     [textField setAlphaValue:0.0];
-    NSGridCell *textCell = [[grid rowAtIndex:1] cellAtIndex:1];
+    NSGridCell *textCell = [[grid rowAtIndex:0] cellAtIndex:0];
     textCell.contentView = textField;
     textCell.xPlacement = NSGridCellPlacementCenter;
     textCell.yPlacement = NSGridCellPlacementCenter;
@@ -76,10 +76,13 @@ static NSFont *toNSFont(const struct font *font) {
                                         attributes:self.timerTextAttributes];
     NSTextField *textFieldTime = [NSTextField labelWithAttributedString:text];
     [textFieldTime setAlphaValue:0.0];
-    NSGridCell *timeCell = [[grid rowAtIndex:2] cellAtIndex:1];
+    NSGridCell *timeCell = [[grid rowAtIndex:1] cellAtIndex:0];
     timeCell.contentView = textFieldTime;
     timeCell.xPlacement = NSGridCellPlacementCenter;
     timeCell.yPlacement = NSGridCellPlacementBottom;
+
+    // Set the text row height
+    [grid rowAtIndex:1].height = textFieldTime.fittingSize.height + 24.0;
 
     [NSTimer scheduledTimerWithTimeInterval:0.2
                                     repeats:YES
@@ -104,7 +107,7 @@ static NSFont *toNSFont(const struct font *font) {
   int seconds = (int)time % 60;
   NSString *time_string =
       [NSString stringWithFormat:@"%02d:%02d", minutes, seconds];
-  [[[(NSGridView *)self.contentView rowAtIndex:2] cellAtIndex:1].contentView
+  [[[(NSGridView *)self.contentView rowAtIndex:1] cellAtIndex:0].contentView
       setAttributedStringValue:[[NSAttributedString alloc]
                                    initWithString:time_string
                                        attributes:self.timerTextAttributes]];
@@ -158,7 +161,7 @@ static NSFont *toNSFont(const struct font *font) {
   [self updateTime];
   // Fade in message text
   NSTextField *textField =
-      [[(NSGridView *)(self.contentView) rowAtIndex:1] cellAtIndex:1]
+      [[(NSGridView *)(self.contentView) rowAtIndex:0] cellAtIndex:0]
           .contentView;
   [NSAnimationContext beginGrouping];
   [[NSAnimationContext currentContext]
@@ -169,7 +172,7 @@ static NSFont *toNSFont(const struct font *font) {
   [NSAnimationContext endGrouping];
   // Fade in timer text
   NSTextField *textFieldTime =
-      [[(NSGridView *)(self.contentView) rowAtIndex:2] cellAtIndex:1]
+      [[(NSGridView *)(self.contentView) rowAtIndex:1] cellAtIndex:0]
           .contentView;
   [NSTimer
       scheduledTimerWithTimeInterval:self.config->appearance.animations.timer
