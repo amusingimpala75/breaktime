@@ -31,7 +31,7 @@
             ];
 
             buildPhase = ''
-              zig build
+              zig build -Doptimize=ReleaseSafe
             '';
 
             installPhase = ''
