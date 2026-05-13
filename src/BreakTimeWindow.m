@@ -142,7 +142,8 @@ static NSFont *toNSFont(const struct font *font) {
                                block:^(NSTimer *_Nonnull timer) {
 #pragma unused(timer)
                                  [NSApp activateIgnoringOtherApps:YES];
-                                 [[[BreakTimeWindow alloc] init]
+                                 [[[BreakTimeWindow alloc]
+                                     initWithConfig:self.config]
                                      makeKeyAndOrderFront:nil];
                                }];
 }
